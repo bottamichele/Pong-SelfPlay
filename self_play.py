@@ -2,7 +2,9 @@ import multiprocessing as mp
 import numpy as np
 import gymnasium as gym
 import torch as tc
+import datetime
 import pong_gym
+import os
 
 from collections import deque
 
@@ -13,7 +15,7 @@ from pong_pz.wrappers import normalize_observation_pong, point_reward
 
 from agent import Agent
 
-def test_agent(test_models, is_training, n_test):
+def test_agent(test_models, is_training, n_test, path_training):
     """Test training agent's models.
     
     Parameters
@@ -25,7 +27,10 @@ def test_agent(test_models, is_training, n_test):
         whether the agent is still being trained 
         
     n_test: int
-        number of episodes each agent's model is tested"""
+        number of episodes each agent's model is tested
+        
+    path_training: str
+        a path training"""
     
     #Create envoriment for testing.
     env = gym.make("pong_gym/Pong-v0")
@@ -70,7 +75,7 @@ def test_agent(test_models, is_training, n_test):
             #Update best policy.
             if best_model is None or mean_score >= best_model[1]:
                 best_model = [a_model, mean_score]
-                tc.save(a_model.state_dict(), "./train/model_"+epis+".pth")
+                tc.save(a_model.state_dict(), os.path.join(path_training, f"model_{epis}.pth"))
 
     env.close()
 
@@ -113,6 +118,10 @@ def train(agent, last_n_policies, copy_policy_games, change_policy_games, last_p
     assert n_test_per_policy > 0
 
     rng = np.random.default_rng()
+    
+    #Create path training.
+    path_training = "./train_"+datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+    os.makedirs(path_training)
 
     #Create the enviroment.
     env = pong_v0.env()
@@ -132,12 +141,12 @@ def train(agent, last_n_policies, copy_policy_games, change_policy_games, last_p
 
     #Stack the most recent agent policies.
     last_policies = deque(maxlen=last_n_policies)
-    last_policies.append([agent.get_policy(), agent_elo])
+    last_policies.append([Agent(agent.get_model()), agent_elo])
 
     #Multiprocessing stuff.
     test_models = mp.Queue()
     is_training = mp.Value("i", 1)
-    test_agent_process = mp.Process(target=test_agent, args=(test_models, is_training, n_test_per_policy))
+    test_agent_process = mp.Process(target=test_agent, args=(test_models, is_training, n_test_per_policy, path_training))
 
     #Training phase.
     test_agent_process.start()
@@ -212,6 +221,9 @@ def train(agent, last_n_policies, copy_policy_games, change_policy_games, last_p
 
     #Close enviroment.
     env.close()
+
+    #Save model.
+    tc.save(agent.get_model().state_dict(), os.path.join(path_training, "model.pth"))
 
     #Wait the other process which is testing agent policies left.
     is_training.value = 0

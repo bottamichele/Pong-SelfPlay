@@ -131,4 +131,4 @@ class DuelingDQNAgentTrain(AgentTrain):
         return copy.deepcopy(self.model)
     
     def needs_to_learn(self):
-        return self.episode <= self.target_total_step
+        return self.total_states <= self.target_total_step

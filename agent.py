@@ -19,7 +19,7 @@ class Agent:
         model: DQN-like
             a DQN neural network"""
 
-        self._model = model
+        self._model = model.to(device="cpu")
         self._model.eval()
 
     def choose_action(self, obs):
@@ -30,7 +30,7 @@ class Agent:
         obs: numpy.ndarray
             an observation"""
         
-        return greedy_policy(self._model, tc.from_numpy(obs).to(dtype=tc.float32, device="cpu"))
+        return greedy_policy(self._model, tc.from_numpy(obs).unsqueeze(0).to(dtype=tc.float32, device="cpu"))
 
 # ========================================
 # ========= CLASS Training Agent =========
