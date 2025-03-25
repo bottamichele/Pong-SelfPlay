@@ -9,7 +9,7 @@ from dqn_algorithms.nn import DuelingDQN
 from dqn_algorithms.memory import PropPriorMemory
 from dqn_algorithms.q_methods import compute_q_ddqn
 
-from .agent import AgentTrain
+from agent import AgentTrain
 
 class DuelingDQNAgentTrain(AgentTrain):
     def __init__(self, target_total_step, mem_size, batch_size, update_target_steps, lr=10**-4, gamma=0.99, eps_init=1.0, eps_min=0.01, eps_decay=9.9*10**-6, device=tc.device("cuda" if tc.cuda.is_available() else "cpu")):

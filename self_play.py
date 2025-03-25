@@ -11,7 +11,7 @@ from pong_gym.wrappers import NormalizeObservationPong
 from pong_pz import pong_v0
 from pong_pz.wrappers import normalize_observation_pong, point_reward
 
-from .agent import Agent
+from agent import Agent
 
 def test_agent(test_models, is_training, n_test):
     """Test training agent's models.
