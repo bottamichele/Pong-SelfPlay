@@ -11,7 +11,7 @@ from dqn_algorithms.policy import greedy_policy
 class Agent:
     """An DQN agent which plays Pong."""
 
-    def __init__(self, model):
+    def __init__(self, model, device=tc.device("cpu")):
         """Create new Pong's agent.
         
         Parameter
@@ -19,7 +19,9 @@ class Agent:
         model: DQN-like
             a DQN neural network"""
 
-        self._model = model.to(device="cpu")
+        self._model = model.to(device=device)
+        self._device = device
+
         self._model.eval()
 
     def choose_action(self, obs):
@@ -30,7 +32,7 @@ class Agent:
         obs: numpy.ndarray
             an observation"""
         
-        return greedy_policy(self._model, tc.from_numpy(obs).unsqueeze(0).to(dtype=tc.float32, device="cpu"))
+        return greedy_policy(self._model, tc.from_numpy(obs).to(dtype=tc.float32, device=self._device))
 
 # ========================================
 # ========= CLASS Training Agent =========
@@ -42,6 +44,7 @@ class AgentTrain(ABC):
     episode = 1
     states = 0
     total_states = 0
+    device = None
 
     @abstractmethod
     def train(self, observation, next_observation, action, reward, termination, truncation, info):

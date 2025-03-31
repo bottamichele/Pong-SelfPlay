@@ -1,4 +1,3 @@
-import multiprocessing as mp
 import numpy as np
 import gymnasium as gym
 import torch as tc
@@ -15,72 +14,61 @@ from pong_pz.wrappers import normalize_observation_pong, point_reward
 
 from agent import Agent
 
-def test_agent(test_models, is_training, n_test, path_training):
+def test_agent(test_model, n_test, path_training):
     """Test training agent's models.
     
     Parameters
     --------------------
-    test_models: multiprocessing.Queue
-        queue of agent models which need to be tested
-    
-    is_training: multiprocessing.Value
-        whether the agent is still being trained 
+    test_model: DQN-like
+        a DQN model which needs to be tested
         
     n_test: int
-        number of episodes each agent's model is tested
+        number of episodes model is tested
         
     path_training: str
         a path training"""
     
+    print("*************** TEST PHASE ***************")
+
     #Create envoriment for testing.
     env = gym.make("pong_gym/Pong-v0")
     env = NormalizeObservationPong(env)
 
-    #Main loop.
-    best_model = None
+    #Testing phase.
+    test_agent = Agent(test_model)
+    scores = []
+    for _ in range(n_test):
+        obs, info = env.reset()
+        episode_done = False
 
-    while is_training.value:
-        #A model is tested.
-        while not test_models.empty():
-            a_model, epis = test_models.get()
-            test_agent = Agent(a_model)
+        while not episode_done:
+            #A action is chosen.
+            action = test_agent.choose_action(obs)
 
-            #Testing phase of a policy.
-            scores = []
-            for _ in range(n_test):
-                obs, info = env.reset()
-                episode_done = False
+            #The action chosen is performed.
+            next_obs, _, terminated, truncated, info = env.step(action)
+            episode_done = terminated or truncated
 
-                while not episode_done:
-                    #A action is chosen.
-                    action = test_agent.choose_action(obs)
+            #Next observation.
+            obs = next_obs
 
-                    #The action chosen is performed.
-                    next_obs, _, terminated, truncated, info = env.step(action)
-                    episode_done = terminated or truncated
+        scores.append(info["agent_score"] - info["bot_score"])
 
-                    #Next observation.
-                    obs = next_obs
+    #Print test stats.
+    mean_score = np.mean(scores)
+    std_score = np.std(scores)
 
-                scores.append(info["agent_score"] - info["bot_score"])
+    print("-----------------------------------------------------------------")
+    print("TEST MODEL STATS: avg score = {:.2f}; std score = {:.2f}".format(mean_score, std_score))
+    print("-----------------------------------------------------------------")
 
-            #Print test stats.
-            mean_score = np.mean(scores)
-            std_score = np.std(scores)
-
-            print("-----------------------------------------------------------------")
-            print("TEST MODEL EP. {} STATS: avg score = {:.2f}; std score = {:.2f}".format(epis, mean_score, std_score))
-            print("-----------------------------------------------------------------")
-
-            #Update best policy.
-            if best_model is None or mean_score >= best_model[1]:
-                best_model = [a_model, mean_score]
-                tc.save(a_model.state_dict(), os.path.join(path_training, f"model_{epis}.pth"))
+    #Save model.
+    tc.save(test_model.state_dict(), os.path.join(path_training, "model_"+datetime.datetime.now().strftime("%H-%M-%S")+".pth"))
 
     env.close()
 
 
-def train(agent, last_n_policies, copy_policy_games, change_policy_games, last_policy_prob, a_model_games, n_test_per_policy, use_pr_wrap=False):
+def train(agent, last_n_policies, copy_policy_games, change_policy_games, last_policy_prob, a_model_games, n_test_policy, use_pr_wrap=False):
     """Train an agent against itself to play Pong.
     
     Parameters
@@ -103,8 +91,8 @@ def train(agent, last_n_policies, copy_policy_games, change_policy_games, last_p
     a_model_games: int
         current agent policy is tested every 'a_model_games' episodes
 
-    n_test_per_policy: int
-        number of test done for each policy
+    n_test_policy: int
+        number of test done for current policy
 
     use_pr_wrap: bool, optional
         whether or not to use point reward wrapper
@@ -115,7 +103,7 @@ def train(agent, last_n_policies, copy_policy_games, change_policy_games, last_p
     assert change_policy_games > 0
     assert last_policy_prob >= 0 and last_policy_prob <= 1.0
     assert a_model_games > 0
-    assert n_test_per_policy > 0
+    assert n_test_policy > 0
 
     rng = np.random.default_rng()
     
@@ -137,20 +125,13 @@ def train(agent, last_n_policies, copy_policy_games, change_policy_games, last_p
     opponent_elo = 500
 
     #Create new opponent agent as skilled as training agent.
-    opponent = Agent(agent.get_model())
+    opponent = Agent(agent.get_model(), agent.device)
 
     #Stack the most recent agent policies.
     last_policies = deque(maxlen=last_n_policies)
-    last_policies.append([Agent(agent.get_model()), agent_elo])
-
-    #Multiprocessing stuff.
-    test_models = mp.Queue()
-    is_training = mp.Value("i", 1)
-    test_agent_process = mp.Process(target=test_agent, args=(test_models, is_training, n_test_per_policy, path_training))
+    last_policies.append([Agent(agent.get_model(), agent.device), agent_elo])
 
     #Training phase.
-    test_agent_process.start()
-
     while agent.needs_to_learn():
         #New episode.
         observations, infos = env.reset()
@@ -197,11 +178,7 @@ def train(agent, last_n_policies, copy_policy_games, change_policy_games, last_p
 
         #Current agent policy is copied.
         if agent.episode % copy_policy_games == 0:
-            last_policies.append([Agent(agent.get_model()), agent_elo])
-
-        #Current agent policy is delegated on another process which will test it.
-        if agent.episode % a_model_games == 0:
-            test_models.put((agent.get_model(), agent.episode))
+            last_policies.append([Agent(agent.get_model(), agent.device), agent_elo])
 
         #Print current episode stats.
         print("- Episode {:>3d}: {:2d} - {:2d}; touch = {:>2d} - {:>2d}; ELO = {:>4.1f} - {:>4.1f}; total states = {:>7d}; states = {:>4d}; e = {:.2f}".format(
@@ -216,6 +193,10 @@ def train(agent, last_n_policies, copy_policy_games, change_policy_games, last_p
                         agent.states,
                         agent.epsilon))
         
+        #Current agent is tested.
+        if agent.episode >= 200 and agent.episode % a_model_games == 0:
+            test_agent(agent.get_model(), n_test_policy, path_training)
+        
         #Next episode.
         agent.episode += 1
 
@@ -224,7 +205,3 @@ def train(agent, last_n_policies, copy_policy_games, change_policy_games, last_p
 
     #Save model.
     tc.save(agent.get_model().state_dict(), os.path.join(path_training, "model.pth"))
-
-    #Wait the other process which is testing agent policies left.
-    is_training.value = 0
-    test_agent_process.join()
