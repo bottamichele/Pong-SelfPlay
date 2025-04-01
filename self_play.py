@@ -55,15 +55,17 @@ def test_agent(test_model, n_test, path_training):
         scores.append(info["agent_score"] - info["bot_score"])
 
     #Print test stats.
+    time = datetime.datetime.now().strftime("%H-%M-%S")
     mean_score = np.mean(scores)
     std_score = np.std(scores)
 
     print("-----------------------------------------------------------------")
+    print("model_"+time)
     print("TEST MODEL STATS: avg score = {:.2f}; std score = {:.2f}".format(mean_score, std_score))
     print("-----------------------------------------------------------------")
 
     #Save model.
-    tc.save(test_model.state_dict(), os.path.join(path_training, "model_"+datetime.datetime.now().strftime("%H-%M-%S")+".pth"))
+    tc.save(test_model.state_dict(), os.path.join(path_training, "model_"+time+".pth"))
 
     env.close()
 
