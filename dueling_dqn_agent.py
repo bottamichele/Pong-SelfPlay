@@ -6,10 +6,14 @@ from torch.optim import Adam
 
 from dqn_algorithms.policy import e_greedy_policy
 from dqn_algorithms.nn import DuelingDQN
-from dqn_algorithms.memory import PropPriorMemory, UniformMemory
+from dqn_algorithms.memory import PropPriorMemory
 from dqn_algorithms.q_methods import compute_q_ddqn
 
 from agent import AgentTrain
+
+# ==================================================
+# ========== CLASS Dueling Agent DQN Train =========
+# ==================================================
 
 class DuelingDQNAgentTrain(AgentTrain):
     def __init__(self, target_total_step, mem_size, batch_size, update_target_steps, lr=10**-4, gamma=0.99, eps_init=1.0, eps_min=0.01, eps_decay=9.9*10**-6, device=tc.device("cuda" if tc.cuda.is_available() else "cpu")):
@@ -62,11 +66,11 @@ class DuelingDQNAgentTrain(AgentTrain):
         self.target_total_step = target_total_step
         self.total_states = 0
         self.batch_size = batch_size
-        self.memory = UniformMemory(mem_size, 12, device=self.device)#PropPriorMemory(mem_size, 12, device=self.device)
+        self.memory = PropPriorMemory(mem_size, 12, device=self.device)
         self.epsilon = eps_init
         self.epsilon_min = eps_min
         self.epsilon_decay = eps_decay
-        # self.beta_decay = (1.0 - self.memory.beta) / target_total_step
+        self.beta_decay = (1.0 - self.memory.beta) / target_total_step
         self.gamma = gamma
         self.update_target_steps = update_target_steps
 
@@ -93,8 +97,7 @@ class DuelingDQNAgentTrain(AgentTrain):
 
         if len(self.memory) >= self.batch_size:
             #Sample mini-batch.
-            # obs_b, action_b, reward_b, next_obs_b, next_obs_done_b, weight_b = self.memory.sample_batch(self.batch_size)
-            obs_b, action_b, reward_b, next_obs_b, next_obs_done_b = self.memory.sample_batch(self.batch_size)
+            obs_b, action_b, reward_b, next_obs_b, next_obs_done_b, weight_b = self.memory.sample_batch(self.batch_size)
 
             #Convertion.
             action_b = action_b.to(dtype=tc.int32)
@@ -104,19 +107,18 @@ class DuelingDQNAgentTrain(AgentTrain):
             q, q_target = compute_q_ddqn(self.model, self.target_model, self.gamma, obs_b, action_b, reward_b, next_obs_b, next_obs_done_b)
 
             #Compute loss and gradient.
-            # loss = tc.mean((q_target - q).pow(2) * weight_b)
-            loss = mse_loss(q, q_target).to(self.device)
+            loss = tc.mean((q_target - q).pow(2) * weight_b)
         
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
 
             #Update priorities.
-            # td_errors = tc.clamp(q_target - q, -1.0, 1.0)
-            # self.memory.update_priorities(td_errors)
+            td_errors = tc.clamp(q_target - q, -1.0, 1.0)
+            self.memory.update_priorities(td_errors)
 
         self.epsilon = self.epsilon - self.epsilon_decay if self.epsilon > self.epsilon_min else self.epsilon_min
-        # self.memory.beta += self.beta_decay
+        self.memory.beta += self.beta_decay
 
         if self.total_states % self.update_target_steps == 0:
             self.update_target_model()
@@ -134,3 +136,13 @@ class DuelingDQNAgentTrain(AgentTrain):
     
     def needs_to_learn(self):
         return self.total_states <= self.target_total_step
+    
+# ==================================================
+# =================== LOAD MODEL ===================
+# ==================================================
+
+def load_dueling_dqn_model(model_path):
+    model = DuelingDQN(12, 3, 256, 1, 1, 1)
+    model.load_state_dict(tc.load(model_path))
+
+    return model
