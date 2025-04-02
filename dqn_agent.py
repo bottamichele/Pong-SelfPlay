@@ -11,9 +11,9 @@ from dqn_algorithms.q_methods import compute_q_dqn, compute_q_ddqn
 
 from agent import AgentTrain
 
-# ==================================================
-# ========== CLASS Dueling Agent DQN Train =========
-# ==================================================
+# ========================================
+# ========= CLASS Agent DQN Train ========
+# ========================================
 
 class DQNAgentTrain(AgentTrain):
     def __init__(self, target_total_step, mem_size, batch_size, update_target_steps, use_double=True, use_dueling=True, use_per=True, lr=10**-4, gamma=0.99, eps_init=1.0, eps_min=0.01, eps_decay=9.9*10**-6, device=tc.device("cuda" if tc.cuda.is_available() else "cpu")):
@@ -160,9 +160,9 @@ class DQNAgentTrain(AgentTrain):
     def needs_to_learn(self):
         return self.total_states <= self.target_total_step
     
-# ==================================================
-# =================== LOAD MODEL ===================
-# ==================================================
+# ========================================
+# ============== LOAD MODEL ==============
+# ========================================
 
 def load_dueling_dqn_model(model_path):
     model = DuelingDQN(12, 3, 256, 1, 1, 1)
