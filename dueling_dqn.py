@@ -115,10 +115,6 @@ def train():
             total_states += 1
             observations = next_observations
 
-            #Save the current policy.
-            if total_states % 200000 == 0:
-                tc.save(agent.model.state_dict(), os.path.join(training_path, f"model_{total_states}.pth"))
-
         #Current agent's policy is copied.
         if episode % COPY_POLICY_GAME == 0:
             latest_policies.append(copy.deepcopy(agent.model).to(DEVICE))
@@ -134,11 +130,39 @@ def train():
                         states,
                         agent.epsilon))
         
+        if test_policy(copy.deepcopy(agent.model)):
+            tc.save(agent.model.state_dict(), os.path.join(training_path, f"model_{total_states}.pth"))
+        
         #Next episode.
         episode += 1
 
     agent.save_model(training_path)
     env.close()
+
+def test_policy(model):
+    #Create the enviroment.
+    env = gym.make("pong_gym/Pong-v0")
+    env = NormalizeObservationPong(env)
+
+    #Test the policy.
+    obs, info = env.reset()
+    done = False
+    model.eval()
+
+    while not done:
+        #Choose action.
+        action = greedy_policy(model, tc.Tensor(obs))
+
+        #Perform action chosen.
+        next_obs, _, terminated, truncation, info = env.step(action)
+        done = terminated or truncation
+
+        #Next observation.
+        obs = next_obs
+
+    env.close()
+
+    return info["agent_score"] - info["bot_score"] > 0
 
 # ========================================
 # ========== TEST_TRAINED_MODEL ==========
@@ -186,5 +210,4 @@ def test_trained_model(trained_model_path, n_runs=20):
 # ========================================
 
 if __name__ == "__main__":
-    # train()
-    test_trained_model("./dueling_dqn/31-05-2025_18-01-51/")    train()
+    train()
