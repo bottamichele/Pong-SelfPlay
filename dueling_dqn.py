@@ -30,9 +30,9 @@ BATCH_SIZE = 64
 EPSILON_INIT = 1.0
 EPSILON_END = 0.01
 EPSILON_DECAY = 3.96 * 10**-6
-N_LATEST_POLICY = 6
-CHANGE_POLICY_GAME = 10
-COPY_POLICY_GAME = 20
+N_LATEST_POLICY = 10
+CHANGE_POLICY_GAME = 5
+COPY_POLICY_GAME = 10
 LATEST_POLICY_PROB = 0.5
 DEVICE = tc.device("cpu")
 
@@ -187,4 +187,4 @@ def test_trained_model(trained_model_path, n_runs=20):
 
 if __name__ == "__main__":
     # train()
-    test_trained_model("./dueling_dqn/31-05-2025_18-01-51/")
+    test_trained_model("./dueling_dqn/31-05-2025_18-01-51/")    train()
