@@ -18,6 +18,7 @@ The following libraries were used for this project:
 - [pong_pz](https://github.com/bottamichele/Pong-PZ) v1.0
 - gymnasium v1.1.1
 - pettingzoo v1.24.3
+- SuperSuit v3.10.0
 - numpy v2.1.2
 - torch v2.6.0
 - tensorboard v2.19.0
