@@ -205,7 +205,7 @@ def test_trained_model(trained_model_path, n_runs=20):
         
             scores.append(info["agent_score"] - info["bot_score"])
 
-        print("- {}: mean score = {:2f}; std score = {:2f}; scores = {}".format(file, np.mean(scores), np.std(scores), scores))
+        print("- {}: mean score = {:.2f}; std score = {:.2f}; scores = {}".format(file, np.mean(scores), np.std(scores), scores))
 
     env.close()
 
