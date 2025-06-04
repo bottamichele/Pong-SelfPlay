@@ -35,6 +35,7 @@ CHANGE_POLICY_GAME = 5
 COPY_POLICY_GAME = 10
 LATEST_POLICY_PROB = 0.5
 DEVICE = tc.device("cpu")
+DEBUG_TEST = True
 
 # ========================================
 # ================= TRAIN ================
@@ -130,7 +131,7 @@ def train():
                         states,
                         agent.epsilon))
         
-        if test_policy(copy.deepcopy(agent.model)):
+        if total_states >= 1200000 and test_policy(copy.deepcopy(agent.model)):
             tc.save(agent.model.state_dict(), os.path.join(training_path, f"model_{total_states}.pth"))
         
         #Next episode.
@@ -159,6 +160,9 @@ def test_policy(model):
 
         #Next observation.
         obs = next_obs
+
+    if DEBUG_TEST:
+        print("- TEST POLICY: {:2d} - {:2d}".format(info["agent_score"], info["bot_score"]))
 
     env.close()
 
